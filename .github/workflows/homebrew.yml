@@ -1,0 +1,26 @@
+name: Public Homebrew installation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-tap:
+    runs-on: macos-14
+    timeout-minutes: 15
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+      HOMEBREW_DEVELOPER: "1"
+    steps:
+      - name: Update Homebrew package manager
+        run: brew update
+      - name: Install the publicly available bottle
+        run: brew install gromilicx/tap/geditor
+      - name: Run the formula's tests and public commands
+        run: |
+          brew test gromilicx/tap/geditor
+          geditor --version
+          ge --help
