@@ -97,8 +97,13 @@ def package(target, binary, out, root=ROOT):
                 for file in sorted(stage.iterdir()):
                     output.write(file, stem + "/" + file.name)
         else:
+            # Windows chmod/stat cannot represent Unix executable mode. Store the
+            # intended archive permissions explicitly, independent of the host.
+            def unix_permissions(member):
+                member.mode = 0o755 if member.isdir() or member.issym() or member.name.endswith("/geditor") else 0o644
+                return member
             with tarfile.open(archive, "w:gz", dereference=False) as output:
-                output.add(stage, arcname=stem)
+                output.add(stage, arcname=stem, filter=unix_permissions)
     manifest = {
         "version": current, "target": target, "os": os_name, "arch": arch,
         "archive": archive.name, "sha256": sha256(archive), "minimum": minimum,
