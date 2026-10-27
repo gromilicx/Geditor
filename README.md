@@ -1,162 +1,161 @@
-# GEditor 0.3
+# GEditor
 
-[Releases](https://github.com/gromilicx/Geditor/releases) · [Homebrew tap](https://github.com/gromilicx/homebrew-tap)
+A free terminal code editor written in Rust, with a file explorer, live Markdown preview, an integrated shell and optional AI chat.
+
+Created by **Miodrag Gromilic and OpenAI**. Licensed under **MIT OR Apache-2.0**.
+
+[Releases](https://github.com/gromilicx/Geditor/releases) · [Builds](https://github.com/gromilicx/Geditor/actions) · [Homebrew tap](https://github.com/gromilicx/homebrew-tap)
+
+![Editing Markdown with a live preview in GEditor](docs/screenshots/markdown-preview.png)
+
+## Install
+
+### Homebrew
 
 ```sh
 brew install gromilicx/tap/geditor
 ge .
 ```
 
-Windows: preuzmi odgovarajući ZIP sa Releases, raspakuj ga i dodaj folder u svoj PATH; pokretanje je `ge.exe .`. Linux ima posebne x64 i ARM64 GNU pakete (glibc 2.35+). Mac paket je za Apple Silicon.
-
-Besplatan terminalski editor napisan u Rustu. Autori prikazani u aplikaciji: **Miodrag Gromilic and OpenAI**. Ratatui, Crossterm, Syntect i pravi PTY terminal. MIT ili Apache-2.0 licenca.
-
-## Pokretanje na ovom Macu
+Supports Apple Silicon macOS and Linux x64/ARM64. To upgrade:
 
 ```sh
-ge .                   # trenutni direktorijum
-ge ~/Projects/projekat # drugi direktorijum
-ge src/main.rs         # postojeći fajl, ili novi fajl u postojećem direktorijumu
+brew update
+brew upgrade geditor
 ```
 
-Instalacija: `/Users/grom/.local/bin/geditor`; `ge` je simbolička veza ka istom izvršnom fajlu. Editor se pokreće bez Rust/Cargo instalacije. Izvori ostaju u `/Users/grom/Downloads/forgedit-rust`.
+If you previously installed GEditor manually, check `type -a ge`: an old executable in `~/.local/bin` can take precedence over Homebrew.
 
-Ako nema otvorenog fajla, sredina editora prikazuje datum i digitalni sat sa sekundama. Zatvaranje poslednjeg sačuvanog fajla vraća taj ekran.
+### Windows and standalone downloads
 
-## Interfejs
+Download your platform's archive from [Releases](https://github.com/gromilicx/Geditor/releases), extract it, then run GEditor in a terminal. No Rust installation is needed.
 
-Gornji meniji: **File, Edit, View, Settings, Help**. Klik ili tastatura: levo/desno bira meni, gore/dole stavku, Enter izvršava, Esc zatvara. Kartice otvorenih fajlova mogu se birati mišem.
+| Platform | CPU | Archive | Minimum |
+|---|---|---|---|
+| macOS | Apple Silicon ARM64 | `geditor-VERSION-macos-arm64.tar.gz` | macOS 11; Homebrew has its own OS requirements |
+| Linux | Intel/AMD x64 | `geditor-VERSION-linux-x64.tar.gz` | glibc 2.35+ |
+| Linux | ARM64 | `geditor-VERSION-linux-arm64.tar.gz` | glibc 2.35+ |
+| Windows | Intel/AMD x64 | `geditor-VERSION-windows-x64.zip` | Windows 10+ |
+| Windows | ARM64 | `geditor-VERSION-windows-arm64.zip` | Windows 11 ARM64 |
 
-`Ctrl+Tab` menja fokus redom **Explorer → Editor → AI → Terminal → Explorer**. Isključeni paneli se preskaču. `Ctrl+Shift+Tab` menja smer. Ako terminal presreće te kombinacije, koristi **Ctrl+K, pa Ctrl+F**. Nema obaveznih funkcijskih tastera.
+On Windows, from the extracted folder:
 
-View meni uključuje/isključuje svaki od četiri panela i minimapu. `[+]` u naslovu proširuje aktivni panel na ceo radni prostor; ponovni izbor vraća raspored. `[x]` sakriva panel. Podrazumevani raspored ostaje sačuvan i može se vratiti. Na uskom ekranu vidi se fokusirani panel; promenom fokusa prikazuju se ostali uključeni paneli.
+```powershell
+.\ge.exe .
+.\ge.exe README.md
+```
 
-Minimapa prikazuje gustinu koda kroz ceo fajl, označava stvarni vidljivi opseg i trenutni red. Klik vodi na odgovarajući red. Kratki fajlovi se ne ponavljaju da popune visinu. Pregled koristi ograničen uzorak znakova po prikazanom redu i automatski se skriva kada nema dovoljno širine.
+Add that folder to your user PATH to run `ge` anywhere. Windows Terminal is recommended.
 
-## Prečice
-
-Kombinacija „Ctrl+K, Ctrl+O“ znači: pritisni Ctrl+K, otpusti, pa pritisni Ctrl+O.
-
-| Prečica | Radnja |
-|---|---|
-| Ctrl+Tab / Ctrl+Shift+Tab | Sledeći / prethodni uključeni panel |
-| Ctrl+K, Ctrl+F | Sledeći panel; rezerva za starije terminale |
-| Ctrl+E | Glavni meni, van ugrađenog terminala |
-| Ctrl+K, Ctrl+V | Glavni meni iz svakog panela |
-| Ctrl+N / Ctrl+O | Novi fajl / otvori fajl ili direktorijum |
-| Ctrl+P | Brzo otvaranje projektnih fajlova |
-| Ctrl+S / Ctrl+W | Sačuvaj / zatvori fajl |
-| Ctrl+F / Ctrl+G | Pretraži otvoreni fajl / ceo projekat |
-| Ctrl+U / Ctrl+R | Undo / redo |
-| Ctrl+A / Ctrl+C / Ctrl+X / Ctrl+V | Označi sve / kopiraj / iseci / nalepi iz internog clipboarda |
-| Ctrl+Q | Izlaz; ponovi za odbacivanje nesnimljenih izmena |
-| Ctrl+K, Ctrl+B | Explorer uključi/isključi |
-| Ctrl+K, Ctrl+E | Editor uključi/isključi |
-| Ctrl+K, Ctrl+A | AI uključi/isključi |
-| Ctrl+K, Ctrl+T | Terminal uključi/isključi |
-| Ctrl+K, Ctrl+M | Minimap uključi/isključi |
-| Ctrl+K, Ctrl+Z | Proširi/vrati aktivni panel |
-| Ctrl+K, Ctrl+R | Vrati podrazumevani raspored |
-| Ctrl+K, Ctrl+C | Sakrij aktivni panel |
-| Ctrl+K, Ctrl+S | Save As; odbija postojeći fajl |
-| Ctrl+K, Ctrl+D / Ctrl+K, Ctrl+U | Sledeća / prethodna kartica fajla |
-| Ctrl+K, Ctrl+N / Ctrl+K, Ctrl+P | Sledeće / prethodno poklapanje poslednje pretrage |
-| Ctrl+K, Ctrl+O | Settings |
-| Ctrl+K, Ctrl+H / Ctrl+K, Ctrl+I | Help / About |
-| Ctrl+K, Ctrl+K | Prosledi Ctrl+K ugrađenom shell-u |
-
-U ugrađenom terminalu Ctrl+C, Ctrl+D, Ctrl+L, Ctrl+E i ostale standardne kontrole prosleđuju se shell-u. Za komande aplikacije koristi Ctrl+K kombinacije ili prvo promeni fokus. Tab/Enter/Backspace se unutar Ctrl+K kombinacija pravilno prepoznaju i kada terminal njima kodira Ctrl+I/M/H. U editoru unutrašnji clipboard radi između svih otvorenih fajlova; paste iz sistemskog clipboarda dolazi preko terminalskog paste-a (na Macu obično Cmd+V).
-
-## Settings
-
-Otvori **Settings → Preferences** ili `Ctrl+K, Ctrl+O`. Izmene izgleda vide se odmah. `Ctrl+S` čuva i primenjuje; `Esc` odbacuje. Ako je otvoreno polje ili dropdown, prvi Esc zatvara samo to polje. Odsek menjaš pomoću Ctrl+Tab ili prenosivih Ctrl+N / Ctrl+P; moguć je i klik na naslov odseka.
-
-- **Appearance:** Midnight, Light, Dracula i Terminal teme; Auto/true color/256/16/monochrome; posebna boja teksta, pozadine i akcenta; ASCII ivice; veliki sat; tab širina; brojevi redova.
-- **Panels:** početna vidljivost svih panela i minimape; širina sidebara, AI i minimape; procenat visine terminala. View promene važe za trenutnu sesiju, a Settings čuva početni raspored.
-- **AI:** dropdown profila ključa, nazivi profila, maskirani unos ključa, dropdown modela, ručni ID modela, osvežavanje dostupnih modela, API base URL i uključivanje sadržaja aktivnog fajla u poruku.
-- **General:** ime autora za About.
-
-**Veličinu i porodicu fonta određuje terminalski emulator.** Standardni TUI protokol nema prenosivu kontrolu fontova. U Settings je to jasno prikazano; font i zoom menjaš u podešavanjima terminala (na Macu obično Cmd +/-). Širine i visine panela podešavaju se u aplikaciji.
-
-Na macOS/Linux sistemima podešavanja se čuvaju u `~/.config/geditor/settings.json`, a na Windowsu u `%APPDATA%\GEditor\settings.json`. `XDG_CONFIG_HOME` može da promeni osnovni direktorijum. Za izolovan profil može se zadati `GEDITOR_CONFIG_DIR`. Na Unix sistemima direktorijum ima dozvole 0700, a fajl 0600. **Ključevi su lokalni tekst u tom privatnom fajlu, nisu šifrovani niti šalju se tokom samog podešavanja.** Mogu se koristiti i samo iz `OPENAI_API_KEY`, izborom Environment profila. Unos novog ključa je maskiran; prazan unos briše ključ iz izabranog profila.
-
-## AI modeli i ključevi
-
-1. U Settings/AI izaberi Environment ili jedan od tri profila (Personal/Work/Other; nazivi se mogu promeniti).
-2. Za lokalni profil unesi ključ.
-3. `Refresh models` šalje izričit GET zahtev na `/models`; sadržaj fajla se ne šalje. Zatim izaberi tekstualni model u dropdownu. Ručni ID je takođe moguć.
-4. Ctrl+S čuva podešavanja. Enter u AI panelu šalje poruku izabranim ključem i modelom.
-
-Modeli se učitavaju prema [zvaničnom Models API-ju](https://developers.openai.com/api/reference/resources/models/methods/list); katalog može sadržati i modele za druge namene, zato biraj model koji podržava tekstualni Responses API. Osnovni URL je `https://api.openai.com/v1`; prilagođeni endpoint mora podržavati Responses API. HTTPS je obavezan osim za localhost. HTTP preusmeravanja su isključena.
-
-Sadržaj fajla (do 16 KB, uz ispravne UTF-8 granice) šalje se samo kada ti pošalješ chat poruku i uključen je Include file context. Slanje poruke čuva poslednjih do 12 poruka za kontekst i koristi `store: false`. Editor ne primenjuje AI predloge automatski. Aplikacija je besplatna; API usluga može imati sopstvenu cenu.
-
-## Markdown uređivanje i live preview
+For a manual macOS/Linux installation, from the extracted folder:
 
 ```sh
+mkdir -p "$HOME/.local/bin"
+install -m 755 geditor "$HOME/.local/bin/geditor"
+ln -sfn geditor "$HOME/.local/bin/ge"
+```
+
+Ensure `~/.local/bin` is in PATH. Linux GNU archives are not Alpine/musl builds. Intel Mac and 32-bit ARM builds are not included. Release archives include `SHA256SUMS` for verification; they do not currently have Apple Developer ID or Windows code-signing certificates.
+
+## Use
+
+```sh
+ge .
+ge /path/to/project
+ge src/main.rs
 ge README.md
 ```
 
-`.md`, `.markdown`, `.mdown`, `.mkd` i `.mkdn` fajlovi (i velika slova u ekstenziji) imaju uređivanje izvornog teksta i formatirani pregled. Pregled se podrazumevano otvara uz kod; početno ponašanje menja se u Settings → Panels → Markdown on .md open.
+With no open file, the editor shows the date and a digital clock. `File`, `Edit`, `View`, `Settings` and `Help` menus work with both keyboard and mouse. `[+]` expands a panel and `[x]` hides it. On narrow screens, the focused panel is shown; cycle focus to reveal the others.
 
-| Prečica | Radnja |
+### Main shortcuts
+
+| Shortcut | Action |
 |---|---|
-| Ctrl+K, Ctrl+W | Uključi/isključi podeljeni Markdown pregled |
-| Ctrl+K, Ctrl+L | Pregled preko celog radnog prostora; ponovo vraća podeljeni prikaz i raniji raspored |
-| Ctrl+K, Ctrl+Y | Promeni fokus između izvornog teksta i pregleda |
+| Ctrl+Tab / Ctrl+Shift+Tab | Next / previous enabled panel |
+| Ctrl+K, Ctrl+F | Portable next-panel fallback |
+| Ctrl+E | Menu, outside the shell |
+| Ctrl+K, Ctrl+V | Menu, from every panel |
+| Ctrl+N / Ctrl+O | New file / open file or directory |
+| Ctrl+P | Quick Open project files |
+| Ctrl+S / Ctrl+W | Save / close file |
+| Ctrl+F / Ctrl+G | Search current buffer / workspace |
+| Ctrl+U / Ctrl+R | Undo / redo |
+| Ctrl+A / Ctrl+C / Ctrl+X / Ctrl+V | Select all / copy / cut / internal paste |
+| Ctrl+Q | Quit; repeat to discard unsaved changes |
 
-Iste komande su u View meniju. Klik bira fokus. U pregledu rade gore/dole, PageUp/PageDown, Home/End i točkić miša. Esc vraća fokus na uređivanje. Sam pregled ne prihvata kucanje ili paste kao izmenu dokumenta; Ctrl+S i dalje snima izvornu Markdown datoteku. Pri uređivanju pregled prati aktivni deo dokumenta, a dok je fokus u pregledu može se nezavisno skrolovati.
+For a two-part shortcut, press Ctrl+K, release it, then press the second Ctrl combination:
 
-Podržani su CommonMark/GFM naslovi, pasusi, bold/italic/precrtano, inline kod i ograđeni blokovi koda, liste i checkliste, citati, horizontalne linije, tabele, linkovi i reference fusnota. Unicode i uvlačenje koda se čuvaju. Pregled se osvežava iz buffera, uključujući nesnimljene izmene, undo i redo; rezultat se kešira dok su tekst, širina i tema isti.
-
-Ovo je **terminalski pregled**. Slike imaju opis i putanju, linkovi prikazuju i odredište, a HTML ostaje tekst. Ne izvršavaju se HTML/JavaScript niti se automatski preuzimaju slike ili drugi resursi. CSS, vizuelni prikaz slika i matematičko slaganje nisu podržani. Kod veoma velikih dokumenata pregled prikazuje do 20.000 formatiranih redova uz vidljivu poruku o limitu; izvorni fajl ostaje dostupan za uređivanje u celosti.
-
-## Precizna pretraga
-
-`Ctrl+F` pretražuje aktivni buffer, uključujući nesnimljene izmene. `Ctrl+G` pretražuje direktorijum projekta u pozadini i koristi aktuelne verzije otvorenih imenovanih buffera. Quick Open (`Ctrl+P`) traži po relativnoj putanji fajlova.
-
-U popupu za kod:
-
-| Prečica | Opcija |
+| Second combination | Action |
 |---|---|
-| Ctrl+C | Razlikovanje velikih i malih slova |
-| Ctrl+W | Cela reč; Unicode granice reči |
-| Ctrl+R | Regex, ili doslovni tekst |
-| Ctrl+D | Uključi skrivene fajlove |
-| Ctrl+A | Uključi ignorisane i build foldere |
-| Ctrl+T | Prebaci unos između upita i filtera fajlova |
-| Ctrl+S | Pokreni/ponovi pretragu |
-| Ctrl+U | Očisti trenutno polje |
+| Ctrl+B / Ctrl+E | Toggle explorer / editor |
+| Ctrl+A / Ctrl+T | Toggle AI / shell |
+| Ctrl+M | Toggle minimap |
+| Ctrl+Z | Maximize / restore focused panel |
+| Ctrl+R | Restore saved default layout |
+| Ctrl+C | Hide focused panel |
+| Ctrl+S | Save As; refuses to overwrite existing files |
+| Ctrl+D / Ctrl+U | Next / previous file tab |
+| Ctrl+N / Ctrl+P | Next / previous search match |
+| Ctrl+O | Settings |
+| Ctrl+H / Ctrl+I | Help / About |
+| Ctrl+K | Send Ctrl+K to the shell |
 
-Levo/desno, Home/End, Delete i Backspace uređuju upit. Filteri prihvataju glob izraze odvojene zarezom, npr. `*.rs,*.toml` ili `src/**`. Pretraga otvorenog fajla reaguje odmah; pretraga projekta se pokreće Enterom ili Ctrl+S. Dok posao traje, prozor ostaje dostupan; izmena upita i Esc otkazuju zastareli posao.
+The shell keeps its normal Ctrl+C/D/L/E and other controls. Use Ctrl+Tab or the Ctrl+K commands to leave it. No function keys are required. Some terminals intercept Ctrl+Tab; Ctrl+K, Ctrl+F is the fallback. Paste from the system clipboard using your terminal's paste command. The internal clipboard works across open file tabs.
 
-Rezultat prikazuje **relativni fajl:red:kolona**, sa numeracijom od 1 i kolonom u Unicode znakovima, plus isečak koda usmeren na poklapanje. Gore/dole, PageUp/PageDown ili miš biraju rezultat. Enter ili klik odmah otvara fajl, pomera kursor i označava tačan opseg teksta. Iz otvorenog koda Ctrl+K Ctrl+N/P nastavlja poslednju listu poklapanja. Pogrešan regex daje poruku greške bez rušenja. Pretraga je po pojedinačnim redovima; višeredni regex nije podržan.
+## Markdown
 
-Podrazumevano se poštuje `.gitignore`, a build/skriveni folderi preskaču. Git interni direktorijum `.git` se uvek preskače, kao i symlink direktorijumi. Broj pregledanih i preskočenih fajlova i dostizanje limita prikazuju se u popupu. Limiti radi odziva: 5.000 poklapanja, 20.000 fajlova, 100.000 prolaza, dubina 40, 64 MiB pročitanog teksta i 15 sekundi po projektu. Binarni/ne-UTF-8 fajlovi i fajlovi preko 2 MiB se preskaču.
+Markdown files open with an editable source and live preview. It follows unsaved changes, undo and redo. Try `ge examples/markdown-demo.md`.
 
-## Izgradnja i provera
+- **Ctrl+K, Ctrl+W:** preview on/off.
+- **Ctrl+K, Ctrl+L:** full preview / split view.
+- **Ctrl+K, Ctrl+Y:** switch source/preview focus.
 
-Rust 1.88+ i sistemski razvojni alati; na ovom Macu korišćen je Rust 1.97.1 i Apple Command Line Tools.
+Use arrows, PageUp/PageDown, Home/End or the wheel to scroll. Esc returns to source. The preview is read-only; Ctrl+S saves the original Markdown file.
+
+Supports headings, paragraphs, bold/italic/strikethrough, lists, checklists, quotes, tables, inline/fenced code, links and footnotes. Images display their alt text and path. HTML is shown as text; JavaScript/CSS are not executed and external resources are not fetched. This is a terminal renderer, with a visible limit of 20,000 formatted rows. The full source remains editable within the editor's file limits.
+
+## Search
+
+Ctrl+F searches the active buffer, including unsaved edits. Ctrl+G searches the project in the background and uses the current content of open named buffers. Results show `file:line:column` (one-based Unicode character columns). Enter or click opens the file and selects the exact match.
+
+Inside search: Ctrl+C toggles case, Ctrl+W whole words, Ctrl+R regex, Ctrl+D hidden files, Ctrl+A ignored/build folders, Ctrl+T the file filter, Ctrl+S runs/repeats, and Ctrl+U clears the field. Filters include `*.rs,*.toml` and `src/**`. Arrows, Home/End, Delete and Backspace edit the query. Project search starts with Enter; current-buffer search updates immediately.
+
+By default `.gitignore`, hidden files and build folders are respected. `.git` and symlink directories are always skipped. Search is line-based rather than a multiline regex engine. For responsiveness it is capped at 5,000 matches, 20,000 files, 100,000 visits, depth 40, 64 MiB read and 15 seconds. Skipped files and reached limits are displayed.
+
+## Settings and AI
+
+Open Settings with Ctrl+K, Ctrl+O. Ctrl+Tab or Ctrl+N/P switches sections; Enter edits a field or opens a dropdown. Ctrl+S saves, Esc discards. Settings include themes/custom colors, ANSI color modes, ASCII borders, indentation, line numbers, panel defaults/sizes, Markdown preview and AI settings. Font family and font size are controlled by your terminal; standard TUI protocols cannot set them portably.
+
+Settings locations:
+
+- macOS/Linux: `~/.config/geditor/settings.json`.
+- Windows: `%APPDATA%\GEditor\settings.json`.
+- Overrides: `GEDITOR_CONFIG_DIR` or `XDG_CONFIG_HOME`.
+
+Unix settings directories/files use 0700/0600 permissions. Saved API keys are **local plaintext**, not encrypted. You can instead select the environment profile and use `OPENAI_API_KEY` without saving the key in settings.
+
+In Settings/AI choose a profile, enter its key, refresh the model list, select a text model and save. The default endpoint is the OpenAI Responses API at `https://api.openai.com/v1`; custom endpoints must be Responses-compatible. HTTPS is required except for localhost. Redirects are disabled.
+
+A chat message sends up to 12 recent messages and, only when Include file context is enabled, up to 16 KB of the active buffer. Opening the editor or changing settings does not send code. Requests use `store: false`; the editor never applies AI changes automatically. GEditor is free; API providers may charge separately. Automated AI tests use a local mock server, not paid API calls.
+
+## Build and release
+
+Rust 1.88+ and native C build tools are required to build; the release workflow uses Rust 1.97.1. macOS needs Apple Command Line Tools; Windows MSVC builds need Visual Studio C++ tools. End users of release binaries do not need Rust.
 
 ```sh
 cargo fmt --check
 cargo test --release --locked
 cargo clippy --release --all-targets --locked -- -D warnings
 cargo build --release --locked
-install -m 755 target/release/geditor "$HOME/.local/bin/geditor"
-ln -sfn geditor "$HOME/.local/bin/ge"
 ```
 
-`./scripts/build.sh` radi provere i izgradnju. Windows ima `scripts/build.ps1`; druge platforme nisu potvrđene na ovom Macu. `Cargo.lock` čuva proverene verzije biblioteka.
+The release workflow tests and packages each target on its own OS/CPU runner. [RELEASING.md](RELEASING.md) describes the version/tag, draft release, checksum and Homebrew update process.
 
-Testovi pokrivaju čuvanje i CRLF, zaštitu od prepisivanja, nevažeće fajlove, Unicode bojenje i pretragu, fokus/panele, ključne Ctrl kombinacije, clipboard između fajlova, podešavanja i privatne dozvole. AI test koristi samo lokalni HTTP server sa lažnim ključem. Poseban test za izvoz prikaza je isključen iz redovnog pokretanja i korišćen je za ručni pregled interfejsa.
+## Current limits
 
-## Granice podrške
+GEditor is an MVP, without LSP/autocomplete, a debugger, Git diff or external file-change watching. Opening files is limited to valid UTF-8 text, 2 MiB and 65,535 lines. Syntax highlighting covers the first 3,000 lines. Close a saved tab and reopen it to reload external changes. A VT-compatible interactive terminal is required; `TERM=dumb` is unsupported. At least 80×24 is recommended; narrow layouts adapt, and all panels together require more width.
 
-Za pun interfejs preporučeno je bar 80×24; svi paneli istovremeno traže više širine. Manji prozori prilagođavaju raspored. Potreban je interaktivan VT-kompatibilan terminal; `TERM=dumb` nije podržan. Testiran je ovaj Apple Silicon Mac, xterm-256color i 80×24 VT prikaz, uključujući sekvence tastature i miša. Nije moguće garantovati iste fontove ili prečice u svakom terminalskom emulatoru; za to postoje ASCII/ANSI modovi i rezervne prečice.
+## License
 
-Ovo je MVP editor: nema LSP/autocomplete, debugger, Git diff ni praćenje spoljnih izmena fajlova. Otvaranje fajla je ograničeno na 2 MiB i 65.535 redova, bojenje na prvih 3.000 redova. Spoljne izmene se ne osvežavaju automatski; zatvori sačuvanu karticu pa ponovo otvori fajl. Stvarni pozivi plaćenom AI servisu nisu izvršavani tokom razvoja.
-
-## Windows, Linux, Mac ARM i Homebrew distribucija
-
-Pripremljeni su native release buildovi za Windows/Linux x64 i ARM64 i macOS Apple Silicon. Uputstvo za GitHub Releases, generisanje Homebrew formule i sopstveni tap je u [RELEASING.md](RELEASING.md). Objavljena verzija koristi pakete iz GitHub Actions native buildova za odgovarajući procesor. Detalji statusa provera dostupni su u Actions kartici repozitorijuma.
+Choose either [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE).

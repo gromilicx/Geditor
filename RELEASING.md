@@ -1,163 +1,93 @@
-# GEditor: Windows, Linux, Mac ARM i Homebrew
+# Maintaining GEditor releases
 
-Održavanje izdanja za https://github.com/gromilicx/Geditor i Homebrew tap https://github.com/gromilicx/homebrew-tap.
+Application: https://github.com/gromilicx/Geditor  
+Homebrew tap: https://github.com/gromilicx/homebrew-tap
 
-## Platforme
+## Build matrix
 
-| Sistem | Procesor | Rust target | Runner | Arhiva |
-|---|---|---|---|---|
-| macOS | Apple Silicon / ARM64 | aarch64-apple-darwin | macos-14 | .tar.gz |
-| Linux | Intel/AMD 64-bit | x86_64-unknown-linux-gnu | ubuntu-22.04 | .tar.gz |
-| Linux | ARM64 | aarch64-unknown-linux-gnu | ubuntu-22.04-arm | .tar.gz |
-| Windows | Intel/AMD 64-bit | x86_64-pc-windows-msvc | windows-2022 | .zip |
-| Windows | ARM64 | aarch64-pc-windows-msvc | windows-11-arm | .zip |
+| Target | GitHub runner | Archive |
+|---|---|---|
+| aarch64-apple-darwin | macos-14 | macOS Apple Silicon tar.gz |
+| x86_64-unknown-linux-gnu | ubuntu-22.04 | Linux x64 tar.gz |
+| aarch64-unknown-linux-gnu | ubuntu-22.04-arm | Linux ARM64 tar.gz |
+| x86_64-pc-windows-msvc | windows-2022 | Windows x64 ZIP |
+| aarch64-pc-windows-msvc | windows-11-arm | Windows ARM64 ZIP |
 
-Izvršni fajl je `geditor`/`ge` na Macu i Linuxu, odnosno `geditor.exe`/`ge.exe` na Windowsu. Korisnicima ne treba Rust. Jedan Mac izvršni fajl ne radi na drugim operativnim sistemima, čak ni kada svi imaju ARM64 procesor.
+Release builds use Rust 1.97.1, the committed Cargo.lock, native OS/CPU runners, and the native C toolchain. Windows releases request a static C runtime. macOS deployment target is 11.0. Linux GNU packages require glibc 2.35+ and are not Alpine/musl binaries. Intel Mac and 32-bit ARM targets are not included.
 
-Mac paket cilja macOS 11+, dok sam Homebrew ima svoja ograničenja podržanih macOS verzija. Linux GNU paketi se grade na Ubuntu 22.04, pa zahtevaju glibc 2.35+; nisu namenjeni Alpine/musl sistemima ni 32-bitnim ARM uređajima. Za takve platforme je potreban poseban build. Windows release gradi statički C runtime radi jednostavnije distribucije; izvršavanje i testovi moraju proći na njegovom Windows runneru.
+## Prepare the next version
 
-## Šta je pripremljeno
-
-- `.github/workflows/release.yml`: pet zasebnih buildova, Rust testovi, Clippy, test izvršnog fajla i pakovanje.
-- `scripts/release.py`: provera oznake verzije, binarnog formata i procesora; pakovanje; SHA-256; generisanje Homebrew formule iz završenih paketa.
-- `scripts/test_release.py`: testovi alata za pakovanje. Sintetička zaglavlja koriste se samo za unit testove i nisu stvarni izvršni fajlovi.
-- Redovna CI provera u `.github/workflows/rust.yml`.
-
-`workflow_dispatch` pravi samo Actions artefakte. Push taga `v0.3.0` pokreće iste provere i tek posle uspeha svih pet platformi kreira **draft GitHub Release**. Draft se objavljuje odvojeno. Ne stvara niti menja Homebrew tap automatski.
-
-## Prvi put: dva javna GitHub repozitorijuma
-
-Predlog za postojeći GitHub nalog `gromilicx`:
-
-1. `gromilicx/Geditor` — izvori i gotovi izvršni fajlovi.
-2. `gromilicx/homebrew-tap` — Homebrew formula.
-
-Imena su predlog, a sledeće komande su koraci za buduće objavljivanje, nisu već izvršene. Javni izvori i release fajlovi postaće vidljivi svima. Sopstveni tap može se koristiti bez prihvatanja u homebrew/core.
-
-Iz direktorijuma projekta:
+1. Update `[package].version` in Cargo.toml and run Cargo to update Cargo.lock.
+2. Run `./scripts/build.sh` and `python3 -m unittest discover -s scripts -p 'test_release.py' -v`.
+3. Commit and push to main. CLI version output and About use the Cargo package version.
+4. Optionally run the five-platform build without creating a release:
 
 ```sh
-cd /Users/grom/Downloads/forgedit-rust
-git init -b main
-git add Cargo.toml Cargo.lock LICENSE README.md RELEASING.md .gitignore src scripts examples packaging .github
-git commit -m "Prepare GEditor release builds"
-gh repo create gromilicx/Geditor --public --source . --remote origin --push
+gh workflow run release.yml --repo gromilicx/Geditor --ref main
 ```
 
-Ako odabereš druga imena, zameni ih u komandama. Release workflow sam uzima stvarni `github.repository`, pa generisana formula koristi odgovarajući URL.
+Workflow-dispatch runs create Actions artifacts only. The release script checks the executable format and CPU architecture, the version, and all archive hashes. Packaging tests use temporary synthetic file headers only for testing rejection/metadata; those fixtures are never release binaries.
 
-## Provera i prva verzija
+## Tag and draft release
 
-Najpre u GitHub Actions pokreni **Release binaries → Run workflow**, sa grane main. To proverava sve sisteme bez pravljenja release-a.
-
-Kada svih pet platformi prođe, označi verziju. Tag mora tačno odgovarati `[package].version` u Cargo.toml:
+For version 0.3.0:
 
 ```sh
 git tag v0.3.0
 git push origin v0.3.0
 ```
 
-Posle završetka preuzmi artefakt `release-bundle`, ili pregledaj draft na GitHub Releases. Sadrži:
+Use a new tag matching the actual package version for future releases. Do not move an existing published release tag.
 
-```text
-geditor-0.3.0-macos-arm64.tar.gz
-geditor-0.3.0-linux-x64.tar.gz
-geditor-0.3.0-linux-arm64.tar.gz
-geditor-0.3.0-windows-x64.zip
-geditor-0.3.0-windows-arm64.zip
-SHA256SUMS
-geditor.rb
-*.manifest.json
-```
+The tag workflow runs formatting, tests, Clippy, compilation, and executable `--version`/`--help` checks for every platform. After all five pass, it verifies the archives, generates `geditor.rb` and `SHA256SUMS`, and creates a draft GitHub Release. An existing published release is never overwritten by the workflow.
 
-Neće se napraviti kompletan bundle ako nedostaje neka platforma ili checksum nije ispravan. Draft se može preuzeti autentifikovanim GitHub CLI-jem:
+The release contains five archives, per-target JSON manifests, `SHA256SUMS`, and the generated Homebrew formula. Unix archives contain `geditor` and a `ge` symlink; Windows archives contain `geditor.exe` and `ge.exe`. README and license files are included.
 
-```sh
-gh release download v0.3.0 --repo gromilicx/Geditor --dir dist/published
-```
+Native CLI/unit tests are not a substitute for interactive checks of every terminal emulator. The application has additional local pseudo-terminal tests for editing, search, shell responsiveness, settings and Markdown preview; paid AI calls are not made by those tests.
 
-Pregledaj i praktično isprobaj pakete na tim sistemima. CI pokriva kompilaciju, automatizovane testove i CLI `--version`/`--help`; nije zamena za interaktivnu proveru editora, ugrađenog terminala i AI mreže na svakom sistemu.
+## Publish and update Homebrew
 
-Objavljivanje završenog draft-a:
+Review the completed build checks and draft assets, then publish:
 
 ```sh
 gh release edit v0.3.0 --repo gromilicx/Geditor --draft=false
 ```
 
-Ovo je javno objavljivanje. Homebrew URL-ovi neće raditi dok release nije objavljen. Kod kasnijih verzija ažuriraj Cargo.toml, osveži Cargo.lock kroz Cargo, sačuvaj izmene u Gitu i napravi novi tag. CLI i About uzimaju verziju iz Cargo paketa.
-
-## Homebrew tap
-
-Napravi zaseban lokalni direktorijum za tap i kopiraj **generisanu** formulu iz završenog release-a:
+Download the generated formula from that exact release:
 
 ```sh
-mkdir -p /Users/grom/Downloads/homebrew-tap/Formula
-cp dist/published/geditor.rb /Users/grom/Downloads/homebrew-tap/Formula/geditor.rb
-cd /Users/grom/Downloads/homebrew-tap
-git init -b main
-git add Formula/geditor.rb
-git commit -m "Add GEditor 0.3.0"
-gh repo create gromilicx/homebrew-tap --public --source . --remote origin --push
+gh release download v0.3.0 --repo gromilicx/Geditor --pattern geditor.rb --dir /path/to/release-assets
 ```
 
-Formula bira Mac ARM64 ili odgovarajući Linux paket i proverava stvarni SHA-256. Instalira `geditor` i prečicu `ge`; ne preuzima Rust, jer koristi gotove izvršne fajlove. Windows korisnici koriste ZIP, jer Homebrew nije njihov instalacioni put.
+Copy it into the tap's `Formula/geditor.rb`, commit and push. Do not change a URL while retaining the previous archive's checksum. The formula selects the native Mac ARM64 or Linux x64/ARM64 package and creates both commands. It does not install Rust.
 
-Korisnik zatim instalira jednom komandom:
+Validate the published tap:
 
 ```sh
 brew install gromilicx/tap/geditor
-ge .
-```
-
-Ili odvojeno:
-
-```sh
-brew tap gromilicx/tap
-brew install geditor
-```
-
-Provera objavljene formule i kasnije nadogradnje:
-
-```sh
 brew test gromilicx/tap/geditor
+ge --version
+```
+
+For upgrades:
+
+```sh
 brew update
 brew upgrade geditor
 ```
 
-Za novu verziju prekopiraj njen novi `geditor.rb` u postojeći tap, commit i push. Ne zadržavaj stare kontrolne sume uz novi URL.
+After migrating from a manual installation, inspect `type -a ge` and `type -a geditor`; a binary in `~/.local/bin` may take precedence over Homebrew. Settings are stored outside the installation directory and should not be included in release archives.
 
-## Tvoja postojeća ručna instalacija
+## Signing and permissions
 
-Trenutni `ge` je u `~/.local/bin`, koji je ispred Homebrew putanje. Posle buduće brew instalacije proveri:
+The GitHub CLI credential used to push workflow files needs the `workflow` scope in addition to repository access. The workflow's own token has read-only contents access except for the draft-release job, which has `contents: write`. Creating or updating a separate Homebrew repository is a maintainer operation, not an automatic workflow credential grant.
 
-```sh
-type -a ge
-type -a geditor
-```
+Archives are currently not Apple Developer ID/notarized or Windows code-signed releases. Adding platform signing requires the maintainer's corresponding certificates and credentials.
 
-Dok je prvi rezultat `~/.local/bin/ge`, pokreće se ručna verzija, a ne Homebrew verzija. Za migraciju treba ukloniti ili preimenovati stare ručne alias/symlink fajlove i sačuvati postojeći executable kao rezervu. Podešavanja u `~/.config/geditor` ostaju odvojena od instalacije. U ovoj pripremi ručna instalacija i PATH nisu prebacivani na Homebrew.
+## References
 
-## Ručno pakovanje Mac ARM verzije
-
-```sh
-cargo build --release --locked
-python3 scripts/release.py package --target aarch64-apple-darwin --binary target/release/geditor --out dist
-```
-
-`finalize` se pokreće tek kada su u istom direktorijumu svih pet stvarnih paketa i njihovih manifest fajlova:
-
-```sh
-python3 scripts/release.py finalize --directory dist --repository gromilicx/Geditor
-```
-
-Generator ne izmišlja nedostajuće platforme ili SHA vrednosti.
-
-Za direktnu distribuciju većem broju korisnika može se kasnije dodati Apple Developer ID potpisivanje/notarizacija i Windows potpisivanje. Sertifikati nisu deo ove pripreme; sadašnji workflow ne tvrdi da pravi takve potpisane pakete.
-
-## Zvanična dokumentacija
-
-- [Rust platforme](https://doc.rust-lang.org/rustc/platform-support.html)
-- [GitHub runneri i procesori](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
+- [Rust platform support](https://doc.rust-lang.org/rustc/platform-support.html)
+- [GitHub hosted runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
 - [GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository)
-- [Homebrew tap](https://docs.brew.sh/How-to-Create-and-Maintain-a-Tap)
-- [Homebrew Formula Cookbook](https://docs.brew.sh/Formula-Cookbook)
+- [Homebrew taps](https://docs.brew.sh/How-to-Create-and-Maintain-a-Tap)
+- [Homebrew formula cookbook](https://docs.brew.sh/Formula-Cookbook)
