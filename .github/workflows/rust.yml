@@ -1,0 +1,28 @@
+name: Rust checks
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022, macos-14]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install tested Rust toolchain
+        run: rustup toolchain install 1.97.1 --profile minimal --component rustfmt,clippy
+      - name: Formatting
+        run: cargo +1.97.1 fmt --check
+      - name: Build
+        run: cargo +1.97.1 build --release --locked --all-targets
+      - name: Test
+        run: cargo +1.97.1 test --release --locked
+      - name: Clippy
+        run: cargo +1.97.1 clippy --release --all-targets --locked -- -D warnings

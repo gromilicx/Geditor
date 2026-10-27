@@ -1,0 +1,152 @@
+name: Release binaries
+
+on:
+  push:
+    tags: ["v[0-9]*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  RUST_TOOLCHAIN: "1.97.1"
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14
+            target: aarch64-apple-darwin
+            executable: geditor
+            rustflags: ""
+            python_arch: arm64
+          - runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            executable: geditor
+            rustflags: ""
+            python_arch: x64
+          - runner: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+            executable: geditor
+            rustflags: ""
+            python_arch: arm64
+          - runner: windows-2022
+            target: x86_64-pc-windows-msvc
+            executable: geditor.exe
+            rustflags: "-C target-feature=+crt-static"
+            python_arch: x64
+          - runner: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            executable: geditor.exe
+            rustflags: "-C target-feature=+crt-static"
+            python_arch: arm64
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      RUSTFLAGS: ${{ matrix.rustflags }}
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+      RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+          architecture: ${{ matrix.python_arch }}
+      - name: Check release version and packaging tests
+        run: |
+          python scripts/release.py check --tag "$RELEASE_TAG"
+          python -m unittest discover -s scripts -p 'test_release.py' -v
+      - name: Install Rust and native target
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component rustfmt,clippy
+          rustup target add "$TARGET" --toolchain "$RUST_TOOLCHAIN"
+      - name: Check, test and build
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          cargo +"$RUST_TOOLCHAIN" fmt --check
+          cargo +"$RUST_TOOLCHAIN" test --release --locked --target "$TARGET"
+          cargo +"$RUST_TOOLCHAIN" clippy --release --all-targets --locked --target "$TARGET" -- -D warnings
+          cargo +"$RUST_TOOLCHAIN" build --release --locked --target "$TARGET"
+      - name: Smoke test executable
+        env:
+          TARGET: ${{ matrix.target }}
+          EXECUTABLE: ${{ matrix.executable }}
+        run: |
+          version="$(python scripts/release.py check)"
+          actual="$("target/$TARGET/release/$EXECUTABLE" --version)"
+          test "$actual" = "GEditor ${version#v}"
+          "target/$TARGET/release/$EXECUTABLE" --help
+      - name: Package executable and aliases
+        env:
+          TARGET: ${{ matrix.target }}
+          EXECUTABLE: ${{ matrix.executable }}
+        run: python scripts/release.py package --target "$TARGET" --binary "target/$TARGET/release/$EXECUTABLE" --out dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  bundle:
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: package-*
+          path: dist
+          merge-multiple: true
+      - name: Verify every build and generate Homebrew formula
+        env:
+          RELEASE_REPOSITORY: ${{ github.repository }}
+        run: python scripts/release.py finalize --directory dist --repository "$RELEASE_REPOSITORY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-bundle
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  draft-release:
+    if: github.ref_type == 'tag'
+    needs: bundle
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-bundle
+          path: dist
+      - name: Create or update draft (publishing is a separate manual step)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --json isDraft > existing-release.json 2>/dev/null; then
+            python3 -c 'import json; assert json.load(open("existing-release.json"))["isDraft"], "Will not replace an already published release"'
+            gh release upload "$RELEASE_TAG" dist/* --clobber
+          else
+            gh release create "$RELEASE_TAG" dist/* --verify-tag --draft --title "GEditor $RELEASE_TAG" --generate-notes
+          fi
