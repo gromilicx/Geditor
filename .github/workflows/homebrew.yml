@@ -15,8 +15,6 @@ jobs:
       HOMEBREW_NO_INSTALL_CLEANUP: "1"
       HOMEBREW_DEVELOPER: "1"
     steps:
-      - name: Update Homebrew package manager
-        run: brew update
       - name: Install the publicly available bottle
         run: brew install gromilicx/tap/geditor
       - name: Run the formula's tests and public commands
