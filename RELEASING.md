@@ -41,7 +41,7 @@ Use a new tag matching the actual package version for future releases. Do not mo
 
 The tag workflow runs formatting, tests, Clippy, compilation, and executable `--version`/`--help` checks for every platform. After all five pass, it verifies the archives, generates `geditor.rb` and `SHA256SUMS`, and creates a draft GitHub Release. An existing published release is never overwritten by the workflow.
 
-The release contains five archives, per-target JSON manifests, `SHA256SUMS`, and the generated Homebrew formula. Unix archives contain `geditor` and a `ge` symlink; Windows archives contain `geditor.exe` and `ge.exe`. README and license files are included.
+The release contains five standalone archives, per-target JSON manifests, `SHA256SUMS`, and `geditor.rb`. It also contains three relocatable Homebrew bottles, `geditor-bottled.rb` and `BOTTLE_SHA256SUMS`. Bottles repackage the exact verified Unix executables without compiling them again. They avoid Homebrew's source-build toolchain checks. Unix archives contain `geditor` and a `ge` symlink; Windows archives contain `geditor.exe` and `ge.exe`. README and license files are included.
 
 Native CLI/unit tests are not a substitute for interactive checks of every terminal emulator. The application has additional local pseudo-terminal tests for editing, search, shell responsiveness, settings and Markdown preview; paid AI calls are not made by those tests.
 
@@ -56,10 +56,18 @@ gh release edit v0.3.0 --repo gromilicx/Geditor --draft=false
 Download the generated formula from that exact release:
 
 ```sh
-gh release download v0.3.0 --repo gromilicx/Geditor --pattern geditor.rb --dir /path/to/release-assets
+gh release download v0.3.0 --repo gromilicx/Geditor --pattern geditor-bottled.rb --dir /path/to/release-assets
 ```
 
-Copy it into the tap's `Formula/geditor.rb`, commit and push. Do not change a URL while retaining the previous archive's checksum. The formula selects the native Mac ARM64 or Linux x64/ARM64 package and creates both commands. It does not install Rust.
+Copy `geditor-bottled.rb` into the tap's `Formula/geditor.rb`, commit and push. Do not change a URL while retaining the previous archive's checksum. The formula selects the native Mac ARM64 or Linux x64/ARM64 bottle and creates both commands. It does not install Rust. The standalone `geditor.rb` remains available as a fallback formula using the original archives.
+
+For 0.3.0, bottles were added after the tag build using `scripts/bottle.py` on main. The original five standalone archives and their checksums were preserved. To reproduce this supplemental packaging, download all original assets and run:
+
+```sh
+python3 scripts/bottle.py --directory /path/to/release-assets --repository gromilicx/Geditor
+```
+
+The script validates all five manifests, checks each selected executable's architecture, and generates deterministic bottle tarballs. Future tag workflows run this automatically. `BOTTLE_SHA256SUMS` covers the bottles and bottled formula separately.
 
 Validate the published tap:
 
@@ -91,3 +99,4 @@ Archives are currently not Apple Developer ID/notarized or Windows code-signed r
 - [GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository)
 - [Homebrew taps](https://docs.brew.sh/How-to-Create-and-Maintain-a-Tap)
 - [Homebrew formula cookbook](https://docs.brew.sh/Formula-Cookbook)
+- [Homebrew bottles](https://docs.brew.sh/Bottles)

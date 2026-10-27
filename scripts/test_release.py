@@ -7,6 +7,7 @@ import unittest
 import zipfile
 from pathlib import Path
 import release
+import bottle
 
 
 class ReleaseTests(unittest.TestCase):
@@ -90,6 +91,27 @@ class ReleaseTests(unittest.TestCase):
         (self.dist / record["archive"]).write_bytes(b"modified after packaging")
         with self.assertRaises(ValueError):
             release.finalize(self.dist, "example/geditor")
+
+    def test_bottles_preserve_binary_and_have_install_receipts(self):
+        for target in release.TARGETS:
+            self.pack(target)
+        bottles = bottle.build(self.dist, "example/geditor")
+        self.assertEqual(len(bottles), 3)
+        formula = (self.dist / "geditor-bottled.rb").read_text()
+        for tag, path, digest in bottles:
+            self.assertIn(digest, formula)
+            with tarfile.open(path) as archive:
+                exe = archive.getmember("geditor/0.3.0/bin/geditor")
+                self.assertEqual(exe.mode, 0o755)
+                target = next(t for t, v in bottle.TAGS.items() if v == tag)
+                self.assertEqual(archive.extractfile(exe).read(), self.fixture(target).read_bytes())
+                alias = archive.getmember("geditor/0.3.0/bin/ge")
+                self.assertTrue(alias.issym())
+                self.assertEqual(alias.linkname, "geditor")
+                receipt = json.load(archive.extractfile("geditor/0.3.0/INSTALL_RECEIPT.json"))
+                self.assertEqual(receipt["source"]["versions"]["stable"], "0.3.0")
+        before = {tag: digest for tag, _, digest in bottles}
+        self.assertEqual(before, {tag: digest for tag, _, digest in bottle.build(self.dist, "example/geditor")})
 
 
 if __name__ == "__main__":
